@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mistral Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <header>
+      <div class="header-left">
+        <div class="avatar">M</div>
+        <div>
+          <div class="header-title">Mistral</div>
+          <div class="header-status"><span class="dot"></span>Online</div>
+        </div>
+      </div>
+    </header>
+
+    <main id="messages">
+      <div class="welcome">
+        <div class="welcome-icon">✦</div>
+        <p>Ask me anything</p>
+      </div>
+    </main>
+
+    <div class="input-area">
+      <input id="input" placeholder="Type a message..." autocomplete="off" />
+      <button onclick="sendMessage()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
