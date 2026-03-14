@@ -1,51 +1,71 @@
-// import "dotenv/config"
-// import { ChatMistralAI } from "@langchain/mistralai"
-// import readline from "readline/promises";
-// import { HumanMessage } from "@langchain/core/messages";
-// import chalk from "chalk";
-
-// const messages = [];
-
-// const rl = readline.createInterface({
-//   input: process.stdin,
-//   output: process.stdout,
-// });
-
-// const model = new ChatMistralAI({
-//   model: "mistral-small-latest",
-// });
-
-// console.log(chalk.cyan.bold("\n  Mistral AI Chat\n"));
-
-// while (true) {
-//   const userInput = await rl.question(chalk.green("You: "));
-
-//   if (!userInput.trim()) continue;
-
-//   messages.push(new HumanMessage(userInput));
-//   const response = await model.invoke(messages);
-//   messages.push(response);
-
-//   console.log(chalk.cyan("Mistral: ") + response.content + "\n");
-// }
-
 import express from "express"
 import cors from "cors"
 import "dotenv/config"
 
 import { ChatMistralAI } from "@langchain/mistralai"
 import { HumanMessage } from "@langchain/core/messages"
+import { tool, createAgent } from "langchain"
+import * as z from "zod"
+
+import { sendEmail } from "./mail.service.js"
+import { tavilySearch } from "./tavily.js"
 
 const app = express()
 app.use(cors())
 app.use(express.json())
 
+// ---------------- LLM ----------------
 const model = new ChatMistralAI({
   model: "mistral-small-latest",
 })
 
+
+// ---------------- TOOLS ----------------
+const emailTool = tool(
+  sendEmail,
+  {
+    name: "emailTool",
+    description: "Send an email to a recipient",
+    schema: z.object({
+      to: z.string().describe("Recipient email address"),
+      subject: z.string().describe("Email subject"),
+      html: z.string().describe("HTML email content"),
+    })
+  }
+)
+
+const tavilyTool = tool(
+  tavilySearch,
+  {
+    name: "tavilySearch",
+    description: "Search the internet for current information or news",
+    schema: z.object({
+      question: z.string().describe("Search query")
+    })
+  }
+)
+
+
+// ---------------- AGENT ----------------
+const agent = createAgent({
+  model,
+  tools: [emailTool, tavilyTool],
+  systemPrompt: `
+You are an AI assistant with tools.
+
+Rules:
+- Use tavilySearch if the user asks about current events, news, or facts.
+- Use emailTool if the user asks to send an email.
+- You may use multiple tools if required.
+`
+})
+
+
+// ---------------- MEMORY ----------------
 let messages = []
 
+
+// ---------------- ROUTE ----------------
 app.post("/chat", async (req, res) => {
   try {
 
@@ -53,12 +73,17 @@ app.post("/chat", async (req, res) => {
 
     messages.push(new HumanMessage(message))
 
-    const response = await model.invoke(messages)
+    const response = await agent.invoke({
+      messages
+    })
 
-    messages.push(response)
+    const lastMessage =
+      response.messages[response.messages.length - 1]
+
+    messages.push(lastMessage)
 
     res.json({
-      reply: response.content
+      reply: lastMessage.content
     })
 
   } catch (err) {
@@ -66,9 +91,12 @@ app.post("/chat", async (req, res) => {
   }
 })
 
-app.get("/health",(req,res)=>{
-  res.status(200).json({status:"ok"})
+
+// ---------------- HEALTH ----------------
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" })
 })
+
 
 app.listen(5000, () => {
   console.log("Server running on port 5000")
